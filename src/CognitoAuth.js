@@ -58,6 +58,23 @@ export default class CognitoAuth {
     this.storage = new StorageHelper().getStorage();
     this.signInUserSession.setTokenScopes(tokenScopes);
     this.username = this.getLastUser();
+	this.authEventListenerAttached = false;
+	this.attachAuthEventListener();
+  }
+
+  /**
+   * Attaches window message listener to handle auth flow
+   */
+  attachAuthEventListener() {
+	if (!this.authEventListenerAttached) {
+		this.authEventListenerAttached = true;
+		window.addEventListener('message', event => {
+			if (event.data.location) {
+				if (this.authWindowRef && this.authWindowRef.close) this.authWindowRef.close();
+				this.parseCognitoWebResponse(event.data.location);
+			}
+		}, false);
+	}
   }
 
   /**
@@ -185,22 +202,26 @@ export default class CognitoAuth {
   /**
    * This is used to get a session, either from the session object
    * or from the local storage, or by using a refresh token
+   * @param {boolean} nonInteractive When truthy, only attempts to login
+   * through non-interactive means: cached session or valid refresh token available.
    * @param {string} RedirectUriSignIn Required: The redirect Uri,
    * which will be launched after authentication.
    * @param {array} TokenScopesArray Required: The token scopes, it is an
    * array of strings specifying all scopes for the tokens.
    * @returns {void}
    */
-  getSession() {
-    const tokenScopesInputSet = new Set(this.TokenScopesArray);
-    const cachedScopesSet = new Set(this.signInUserSession.tokenScopes.getScopes());
+  getSession(nonInteractive) {
     const URL = this.getFQDNSignIn();
     if (this.signInUserSession != null && this.signInUserSession.isValid()) {
       return this.userhandler.onSuccess(this.signInUserSession);
     }
     this.signInUserSession = this.getCachedSession();
+
+    const tokenScopesInputSet = new Set(this.TokenScopesArray);
+    const cachedScopesSet = new Set(this.signInUserSession.tokenScopes.getScopes());
+
     // compare scopes
-    if (!this.compareSets(tokenScopesInputSet, cachedScopesSet)) {
+    if (!nonInteractive && !this.compareSets(tokenScopesInputSet, cachedScopesSet)) {
       const tokenScopes = new CognitoTokenScopes(this.TokenScopesArray);
       const idToken = new CognitoIdToken();
       const accessToken = new CognitoAccessToken();
@@ -212,13 +233,20 @@ export default class CognitoAuth {
       this.launchUri(URL);
     } else if (this.signInUserSession.isValid()) {
       return this.userhandler.onSuccess(this.signInUserSession);
-    } else if (!this.signInUserSession.getRefreshToken()
-    || !this.signInUserSession.getRefreshToken().getToken()) {
-      this.launchUri(URL);
-    } else {
+    } else if (this.signInUserSession.getRefreshToken()
+    && this.signInUserSession.getRefreshToken().getToken()) {
       this.refreshSession(this.signInUserSession.getRefreshToken().getToken());
+    } else if (!nonInteractive) {
+      this.launchUri(URL);
     }
     return undefined;
+  }
+
+  /**
+   * Gets session when cached in local storage.
+   */
+  getExistingSession() {
+	  return this.getSession(true);
   }
 
   /**
