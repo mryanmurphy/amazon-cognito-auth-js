@@ -1352,7 +1352,7 @@ class CognitoAuth {
    * @returns {void}
    */
   launchUri(URL) {
-    window.open(URL);
+    this.authWindowRef = window.open(URL);
   }
 
   /**
