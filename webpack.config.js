@@ -1,5 +1,6 @@
 /* eslint-disable */
-var webpack = require('webpack');
+var webpack = require('webpack'),
+	uglifyEsPlugin = require('uglifyes-webpack-plugin');
 
 var banner = '/*!\n' +
 ' * Copyright 2017 Amazon.com,\n' +
@@ -42,14 +43,14 @@ var config = {
   },
   plugins: [
     new webpack.optimize.OccurrenceOrderPlugin(),
-    new webpack.BannerPlugin(banner, { raw: true })
+    new webpack.BannerPlugin({ banner: banner, raw: true })
   ],
   module: {
     loaders: [
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        loader: 'babel',
+        loader: 'babel-loader',
         query: {
           cacheDirectory: './node_modules/.cache/babel'
         }
@@ -61,7 +62,7 @@ var config = {
 if (process.env.NODE_ENV === 'production') {
   config.devtool = 'source-map';
   config.plugins.push(
-    new webpack.optimize.UglifyJsPlugin({
+    new uglifyEsPlugin({
       compress: {
         warnings: false
       }
