@@ -119,7 +119,8 @@ export default class CognitoAuth {
       UNDEFINED: 'undefined',
       SELF: '_self',
       HOSTNAMEREGEX: /:\/\/([0-9]?\.)?(.[^/:]+)/i,
-      QUERYPARAMETERREGEX1: /#(.+)/,
+      HASHPARAMETERREGEX: /#(.+)/,
+      QUERYPARAMETERREGEX1: /[?](.+)/,
       QUERYPARAMETERREGEX2: /=(.+)/,
       HEADER: { 'Content-Type': 'application/x-www-form-urlencoded' },
     };
@@ -270,7 +271,7 @@ export default class CognitoAuth {
    */
   getCodeQueryParameter(httpRequestResponse) {
     let mapSecond = new Map();
-    mapSecond = this.getQueryParameters(httpRequestResponse, mapSecond);
+    mapSecond = this.getQueryParameters(httpRequestResponse, mapSecond, this.getCognitoConstants().QUERYPARAMETERREGEX1);
     if (mapSecond.has(this.getCognitoConstants().CODE)) {
       // if the response contains code
       // To parse the response and get the code value.
@@ -296,7 +297,7 @@ export default class CognitoAuth {
    */
   getTokenQueryParameter(httpRequestResponse) {
     let map = new Map();
-    map = this.getQueryParameters(httpRequestResponse, map);
+    map = this.getQueryParameters(httpRequestResponse, map, this.getCognitoConstants().HASHPARAMETERREGEX);
     const idToken = new CognitoIdToken();
     const accessToken = new CognitoAccessToken();
     const refreshToken = new CognitoRefreshToken();
@@ -430,8 +431,8 @@ export default class CognitoAuth {
    * @param {map} map the query parameter map
    * @returns {map} map
    */
-  getQueryParameters(url, map) {
-    const str = String(url).split(this.getCognitoConstants().QUERYPARAMETERREGEX1);
+  getQueryParameters(url, map, regex) {
+    const str = String(url).split(regex);
     const url2 = str[1];
     const str1 = String(url2).split(this.getCognitoConstants().AMPERSAND);
     const num = str1.length;
@@ -521,24 +522,38 @@ export default class CognitoAuth {
     // This is a sample server that supports CORS.
     const xhr = this.createCORSRequest(this.getCognitoConstants().POST, url);
     let bodyString = '';
-    let i = 0;
-    let j = 0;
-    const jsonData = xhr.responseText;
+
     if (!xhr) {
       return;
     }
     // set header
-    for (; j < header.length; j++) {
-      xhr.setRequestHeader(j, header[j]);
-    }
-    for (; i < body.length; i++) {
-      bodyString = bodyString.concat(i, this.getCognitoConstants().EQUALSIGN,
-      body[i], this.getCognitoConstants().AMPERSAND);
-    }
+	if (header.length) {
+		for (let j = 0; j < header.length; j++) {
+			xhr.setRequestHeader(j, header[j]);
+		}
+	} else {
+		for (let key in header) {
+			if (header.hasOwnProperty && !header.hasOwnProperty(key)) continue;
+			xhr.setRequestHeader(key, header[key]);
+		}
+	}
+	// set body
+	if (body.length) {
+		for (let i = 0; i < body.length; i++) {
+			bodyString = bodyString.concat(i, this.getCognitoConstants().EQUALSIGN, body[i], this.getCognitoConstants().AMPERSAND);
+		}
+	} else {
+		for (let key in body) {
+			if (body.hasOwnProperty && !body.hasOwnProperty(key)) continue;
+			bodyString = bodyString.concat(key, this.getCognitoConstants().EQUALSIGN, body[key], this.getCognitoConstants().AMPERSAND);
+		}
+	}
+
     bodyString = bodyString.substring(0, bodyString.length - 1);
     xhr.send(bodyString);
     xhr.onreadystatechange = function addressState() {
       if (xhr.readyState === 4) {
+		const jsonData = xhr.responseText;
         if (xhr.status === 200) {
           xhr.onload = onSuccess(jsonData);
         } else {
@@ -653,7 +668,7 @@ export default class CognitoAuth {
    * @returns {void}
    */
   launchUri(URL) {
-    window.open(URL, this.getCognitoConstants().SELF);
+    window.open(URL);
   }
 
   /**
@@ -697,9 +712,9 @@ export default class CognitoAuth {
    */
   signOut() {
     const URL = this.getFQDNSignOut();
-    this.signInUserSession = null;
     this.clearCachedTokensScopes();
     this.launchUri(URL);
+	this.signInUserSession = new CognitoAuthSession();
   }
 
   /**
