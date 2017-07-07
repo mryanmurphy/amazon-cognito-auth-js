@@ -735,6 +735,7 @@ class CognitoAuth {
    * @param {string} data.AppWebDomain Required: The application/user-pools Cognito web hostname,
    *                     this is set at the Cognito console.
    * @param {array} data.TokenScopesArray Optional: The token scopes
+   * @param {string} data.IdentityProvider Optional: Identity provider to use
    * @param {string} data.RedirectUriSignIn Required: The redirect Uri,
    * which will be launched after authentication as signed in.
    * @param {string} data.RedirectUriSignOut Required:
@@ -743,13 +744,14 @@ class CognitoAuth {
    */
   constructor(data) {
     const { ClientId, AppWebDomain, TokenScopesArray,
-      RedirectUriSignIn, RedirectUriSignOut } = data || {};
+      RedirectUriSignIn, RedirectUriSignOut, IdentityProvider } = data || {};
     if (data == null || !ClientId || !AppWebDomain || !RedirectUriSignIn || !RedirectUriSignOut) {
       throw new Error(this.getCognitoConstants().PARAMETERERROR);
     }
 
     this.clientId = ClientId;
     this.appWebDomain = AppWebDomain;
+    this.identityProvider = IdentityProvider;
     this.TokenScopesArray = TokenScopesArray || [];
     if (!Array.isArray(TokenScopesArray)) {
       throw new Error(this.getCognitoConstants().SCOPETYPEERROR);
@@ -792,6 +794,7 @@ class CognitoAuth {
       DOMAIN_QUERY_PARAM_REDIRECT_URI: 'redirect_uri',
       DOMAIN_QUERY_PARAM_SIGNOUT_URI: 'logout_uri',
       DOMAIN_QUERY_PARAM_RESPONSE_TYPE: 'response_type',
+      DOMAIN_QUERY_IDENTITY_PROVIDER: 'identity_provider',
       CLIENT_ID: 'client_id',
       STATE: 'state',
       SCOPE: 'scope',
@@ -1372,7 +1375,7 @@ class CognitoAuth {
     const state = this.generateRandomString(this.getCognitoConstants().STATELENGTH, this.getCognitoConstants().STATEORIGINSTRING);
     const tokenScopesString = this.getSpaceSeperatedScopeString();
     // Build the complete web domain to launch the login screen
-    const uri = this.getCognitoConstants().DOMAIN_SCHEME.concat(this.getCognitoConstants().COLONDOUBLESLASH, this.getAppWebDomain(), this.getCognitoConstants().SLASH, this.getCognitoConstants().DOMAIN_PATH_SIGNIN, this.getCognitoConstants().QUESTIONMARK, this.getCognitoConstants().DOMAIN_QUERY_PARAM_REDIRECT_URI, this.getCognitoConstants().EQUALSIGN, encodeURIComponent(this.RedirectUriSignIn), this.getCognitoConstants().AMPERSAND, this.getCognitoConstants().DOMAIN_QUERY_PARAM_RESPONSE_TYPE, this.getCognitoConstants().EQUALSIGN, this.responseType, this.getCognitoConstants().AMPERSAND, this.getCognitoConstants().CLIENT_ID, this.getCognitoConstants().EQUALSIGN, this.getClientId(), this.getCognitoConstants().AMPERSAND, this.getCognitoConstants().STATE, this.getCognitoConstants().EQUALSIGN, state, this.getCognitoConstants().AMPERSAND, this.getCognitoConstants().SCOPE, this.getCognitoConstants().EQUALSIGN, tokenScopesString);
+    const uri = this.getCognitoConstants().DOMAIN_SCHEME.concat(this.getCognitoConstants().COLONDOUBLESLASH, this.getAppWebDomain(), this.getCognitoConstants().SLASH, this.getCognitoConstants().DOMAIN_PATH_SIGNIN, this.getCognitoConstants().QUESTIONMARK, this.getCognitoConstants().DOMAIN_QUERY_PARAM_REDIRECT_URI, this.getCognitoConstants().EQUALSIGN, encodeURIComponent(this.RedirectUriSignIn), this.getCognitoConstants().AMPERSAND, this.getCognitoConstants().DOMAIN_QUERY_PARAM_RESPONSE_TYPE, this.getCognitoConstants().EQUALSIGN, this.responseType, this.getCognitoConstants().AMPERSAND, this.getCognitoConstants().CLIENT_ID, this.getCognitoConstants().EQUALSIGN, this.getClientId(), this.getCognitoConstants().AMPERSAND, this.getCognitoConstants().STATE, this.getCognitoConstants().EQUALSIGN, state, this.getCognitoConstants().AMPERSAND, this.getCognitoConstants().DOMAIN_QUERY_IDENTITY_PROVIDER, this.getCognitoConstants().EQUALSIGN, this.identityProvider ? encodeURIComponent(this.identityProvider) : '', this.getCognitoConstants().AMPERSAND, this.getCognitoConstants().SCOPE, this.getCognitoConstants().EQUALSIGN, tokenScopesString);
     return uri;
   }
 
