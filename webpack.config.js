@@ -45,14 +45,19 @@ var config = {
     new webpack.optimize.OccurrenceOrderPlugin(),
     new webpack.BannerPlugin({ banner: banner, raw: true })
   ],
-  module: {
+ module: {
     loaders: [
       {
         test: /\.js$/,
         exclude: /node_modules/,
         loader: 'babel-loader',
-        query: {
-          cacheDirectory: './node_modules/.cache/babel'
+        options: {
+          cacheDirectory: './node_modules/.cache/babel',
+          presets: [["env", {
+              targets: {
+                  uglify: true,
+              }
+          }]]
         }
       }
     ]
