@@ -37,14 +37,16 @@ export default class CognitoAuth {
 	 * @param {string} data.RedirectUriSignOut Required:
 	 * The redirect Uri, which will be launched when signed out.
 	 * @param {nodeCallback<CognitoAuthSession>} Optional: userhandler Called on success or error.
+	 * @param {string} data.State Optional: State to provide to Cognito. Auth server includes this value
+	 * when redirecting back to the client.
 	 */
   constructor(data) {
     const { ClientId, AppWebDomain, TokenScopesArray,
-    RedirectUriSignIn, RedirectUriSignOut, IdentityProvider } = data || { };
+    RedirectUriSignIn, RedirectUriSignOut, IdentityProvider, State } = data || { };
     if (data == null || !ClientId || !AppWebDomain || !RedirectUriSignIn || !RedirectUriSignOut) {
       throw new Error(this.getCognitoConstants().PARAMETERERROR);
     }
-
+	this.state = State;
     this.clientId = ClientId;
     this.appWebDomain = AppWebDomain;
 	this.identityProvider = IdentityProvider;
@@ -71,7 +73,8 @@ export default class CognitoAuth {
 	if (!this.authEventListenerAttached) {
 		this.authEventListenerAttached = true;
 		window.addEventListener('message', event => {
-			if (event.data.location) {
+			// Match origin to RedirectUriSignIn, which must be sending this message
+			if (this.RedirectUriSignIn.substr(0, event.origin.length) === event.origin && event.data.location) {
 				if (this.authWindowRef && this.authWindowRef.close) this.authWindowRef.close();
 				this.parseCognitoWebResponse(event.data.location);
 			}
@@ -240,9 +243,11 @@ export default class CognitoAuth {
     } else if (this.signInUserSession.getRefreshToken()
     && this.signInUserSession.getRefreshToken().getToken()) {
       this.refreshSession(this.signInUserSession.getRefreshToken().getToken());
-    } else if (!nonInteractive) {
-      this.launchUri(URL);
-    }
+    } else if (nonInteractive) {
+      this.onFailure.call(this, 'No existing session');
+    } else {
+	  this.launchUri(URL);
+	}
     return undefined;
   }
 
@@ -683,13 +688,16 @@ export default class CognitoAuth {
     return encodeURIComponent(tokenScopesString);
   }
 
+  getSignInStateString() {
+	return encodeURIComponent(this.state || this.generateRandomString(this.getCognitoConstants().STATELENGTH, this.getCognitoConstants().STATEORIGINSTRING));
+  }
+
   /**
    * Create the FQDN(fully qualified domain name) for authorization endpoint.
    * @returns {string} url
    */
   getFQDNSignIn() {
-    const state = this.generateRandomString(this.getCognitoConstants().STATELENGTH,
-    this.getCognitoConstants().STATEORIGINSTRING);
+    const state = this.getSignInStateString();
     const tokenScopesString = this.getSpaceSeperatedScopeString();
     // Build the complete web domain to launch the login screen
     const uri = this.getCognitoConstants().DOMAIN_SCHEME.concat(
